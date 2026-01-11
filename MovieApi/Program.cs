@@ -1,5 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using MovieApi.Models;
+using MovieApi.Repositories;
+using MovieApi.Services;
+using AutoMapper;
+using MovieApi.Mapping;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -8,6 +12,11 @@ builder.Services.AddOpenApi();
 builder.Services.AddControllers();
 builder.Services.AddDbContext<MovieContext>(options =>
     options.UseSqlite("Data Source=movies.db"));
+
+// Register repository, service and AutoMapper
+builder.Services.AddScoped<IMovieRepository, MovieRepository>();
+builder.Services.AddScoped<IMovieService, MovieService>();
+builder.Services.AddAutoMapper(typeof(MappingProfile));
 // 1. Add CORS Policy
 builder.Services.AddCors(options => {
     options.AddPolicy("AllowReactApp",

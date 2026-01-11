@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using MovieApi.Models;
+using MovieApi.DTOs;
+using MovieApi.Services;
 
 namespace MovieApi.Controllers;
 
@@ -8,29 +8,58 @@ namespace MovieApi.Controllers;
 [Route("api/[controller]")]
 public class MoviesController : ControllerBase
 {
-    private readonly MovieContext _context;
+    private readonly IMovieService _service;
 
-    // The 'MovieContext' is automatically provided by the .NET DI Container
-    public MoviesController(MovieContext context)
+    public MoviesController(IMovieService service)
     {
-        _context = context;
+        _service = service;
     }
 
     // GET: api/movies
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Movie>>> GetMovies()
+    public async Task<ActionResult<IEnumerable<MovieDto>>> GetMovies()
     {
-        // Fetch directly from SQLite
-        return await _context.Movies.ToListAsync();
+        var movies = await _service.GetAllAsync();
+        return Ok(movies);
+    }
+
+    // GET: api/movies/{id}
+    [HttpGet("{id}")]
+    public async Task<ActionResult<MovieDto>> GetMovie(int id)
+    {
+        var movie = await _service.GetByIdAsync(id);
+        if (movie is null) return NotFound();
+        return Ok(movie);
     }
 
     // POST: api/movies
     [HttpPost]
-    public async Task<ActionResult<Movie>> PostMovie(Movie movie)
+    public async Task<ActionResult<MovieDto>> PostMovie([FromBody] MovieCreateDto dto)
     {
-        _context.Movies.Add(movie);
-        _context.SaveChanges();
+        try
+        {
+            var created = await _service.CreateAsync(dto);
+            return CreatedAtAction(nameof(GetMovie), new { id = created.Id }, created);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
 
-        return CreatedAtAction(nameof(GetMovies), new { id = movie.Id }, movie);
+    // PUT: api/movies/{id}
+    [HttpPut("{id}")]
+    public async Task<IActionResult> PutMovie(int id, [FromBody] MovieCreateDto dto)
+    {
+        var ok = await _service.UpdateAsync(id, dto);
+        return ok ? NoContent() : NotFound();
+    }
+
+    // DELETE: api/movies/{id}
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteMovie(int id)
+    {
+        var ok = await _service.DeleteAsync(id);
+        return ok ? NoContent() : NotFound();
     }
 }
