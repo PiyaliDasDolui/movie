@@ -1,4 +1,5 @@
 import { MovieGrid } from './components/MovieGrid';
+import CreateMovie from './components/CreateMovie';
 
 function App() {
   return (
@@ -7,6 +8,7 @@ function App() {
         <span className="text-xl font-bold text-blue-500">🎬 MovieVault</span>
       </nav>
       <main>
+        {/* <CreateMovie /> */}
         <MovieGrid />
       </main>
     </div>
