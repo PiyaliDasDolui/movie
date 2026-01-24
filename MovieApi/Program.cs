@@ -4,6 +4,10 @@ using MovieApi.Repositories;
 using MovieApi.Services;
 using AutoMapper;
 using MovieApi.Mapping;
+using Azure.AI.OpenAI;
+using Azure;
+using System.ClientModel;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -18,9 +22,42 @@ builder.Services.AddScoped<IMovieRepository, MovieRepository>();
 builder.Services.AddScoped<IMovieService, MovieService>();
 builder.Services.AddAutoMapper(typeof(MappingProfile));
 // 1. Add CORS Policy
-builder.Services.AddCors(options => {
-    options.AddPolicy("AllowReactApp",
-        policy => policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+// builder.Services.AddCors(options => {
+//     options.AddPolicy("AllowReactApp",
+//         policy => policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader().AllowCredentials());
+        
+// });
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowReactApp", policy =>
+    {
+        policy.WithOrigins("http://localhost:5173") // <-- Replace with your React URL
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials(); // Required for SignalR
+    });
+});
+
+builder.Services.AddSignalR();
+
+// Register the AzureOpenAIClient
+builder.Services.AddSingleton(sp => 
+{
+    var endpoint = builder.Configuration["AzureOpenAI:Endpoint"]!;
+    var key = builder.Configuration["AzureOpenAI:Key"]!;
+
+    // Note: ApiKeyCredential works here even without the explicit 'using' 
+    // if ImplicitUsings is enabled.
+    return new AzureOpenAIClient(new Uri(endpoint), new ApiKeyCredential(key));
+});
+
+// 2. Register the specific ChatClient (This is what your MovieChatHub uses)
+builder.Services.AddSingleton(sp => 
+{
+    var azureClient = sp.GetRequiredService<AzureOpenAIClient>();
+    var deployment = builder.Configuration["AzureOpenAI:DeploymentName"];
+    return azureClient.GetChatClient(deployment!);
 });
 var app = builder.Build();
 
@@ -57,7 +94,6 @@ app.MapGet("/weatherforecast", () =>
 
 // 2. Use CORS Policy
 app.UseCors("AllowReactApp");
-
 app.MapControllers();
 // Optional: Add a root message so you know it's working
 app.MapGet("/", () => "API is running! Try /api/movies");
@@ -94,6 +130,8 @@ using (var scope = app.Services.CreateScope())
         context.SaveChanges();
     }
 }
+
+app.MapHub<MovieChatHub>("/moviechathub"); // This must match your URL path
 app.Run();
 
 record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
