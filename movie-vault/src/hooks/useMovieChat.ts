@@ -1,44 +1,55 @@
+// hooks/useMovieChat.ts
 import { useEffect, useState, useRef } from 'react';
-import * as signalR from '@microsoft/signalr';
-import { ChatMessage } from '../types';
+import { HubConnection, HubConnectionBuilder } from '@microsoft/signalr';
+
+export interface Message {
+  id: string;
+  text: string;
+  sender: 'user' | 'assistant';
+}
 
 export const useMovieChat = (hubUrl: string) => {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [status, setStatus] = useState<'Connected' | 'Connecting' | 'Error'>('Connecting');
-  const connectionRef = useRef<signalR.HubConnection | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [status, setStatus] = useState('Disconnected');
+  const connectionRef = useRef<HubConnection | null>(null);
 
   useEffect(() => {
-    // 1. Setup connection
-    const connection = new signalR.HubConnectionBuilder()
+    const connection = new HubConnectionBuilder()
       .withUrl(hubUrl)
       .withAutomaticReconnect()
       .build();
 
-    connectionRef.current = connection;
-
-    // 2. Listen for "tokens" from the .NET Streaming AI
     connection.on("ReceiveToken", (token: string) => {
       setMessages(prev => {
-        const lastMsg = prev[prev.length - 1];
-        if (lastMsg?.sender === 'ai') {
-          return [...prev.slice(0, -1), { ...lastMsg, text: lastMsg.text + token }];
-        }
-        return [...prev, { id: crypto.randomUUID(), sender: 'ai', text: token, timestamp: new Date() }];
+        const lastMessage = prev[prev.length - 1];
+        
+        // If the last message is from the assistant, append the token
+        if (lastMessage && lastMessage.sender === 'assistant') {
+          const updatedLastMessage = { ...lastMessage, text: lastMessage.text + token };
+          return [...prev.slice(0, -1), updatedLastMessage];
+        } 
+        
+        // Otherwise, create a new assistant message entry
+        return [...prev, { id: Date.now().toString(), text: token, sender: 'assistant' }];
       });
     });
 
-    // 3. Start connection
     connection.start()
       .then(() => setStatus('Connected'))
       .catch(() => setStatus('Error'));
 
-    return () => { connection.stop(); }; // Cleanup
+    connectionRef.current = connection;
+
+    return () => { connection.stop(); };
   }, [hubUrl]);
 
   const sendMessage = async (text: string) => {
-    if (connectionRef.current && text.trim()) {
-      const userMsg: ChatMessage = { id: crypto.randomUUID(), sender: 'user', text, timestamp: new Date() };
+    if (connectionRef.current && status === 'Connected') {
+      // Add user message to UI
+      const userMsg: Message = { id: Date.now().toString(), text, sender: 'user' };
       setMessages(prev => [...prev, userMsg]);
+      
+      // Call the Hub method
       await connectionRef.current.invoke("AskAssistant", text);
     }
   };
