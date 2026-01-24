@@ -1,0 +1,22 @@
+/* src/components/MovieChat.module.css */
+.chatContainer {
+  position: fixed;
+  top: 6rem;
+  right: 1.5rem;
+  z-index: 40;
+  width: 20rem;
+  height: 500px;
+  background-color: #111827; /* gray-900 */
+  border: 1px solid #374151;
+  border-radius: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.messageUser {
+  background-color: #2563eb; /* blue-600 */
+  color: white;
+  align-self: flex-end;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+}

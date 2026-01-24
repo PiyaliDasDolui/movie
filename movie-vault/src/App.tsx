@@ -1,5 +1,6 @@
 import { MovieGrid } from './components/MovieGrid';
 import CreateMovie from './components/CreateMovie';
+import { MovieChat } from './components/MovieChat';
 
 function App() {
   return (
@@ -10,6 +11,7 @@ function App() {
       <main>
         {/* <CreateMovie /> */}
         <MovieGrid />
+        <MovieChat />
       </main>
     </div>
   );
